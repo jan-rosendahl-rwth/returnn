@@ -298,6 +298,8 @@ def initBackendEngine():
   BackendEngine.select_engine(config=config)
   if BackendEngine.is_theano_selected():
     print("Theano:", describe_theano_version(), file=log.v3)
+    import TheanoUtil
+    TheanoUtil.monkey_patches()
   elif BackendEngine.is_tensorflow_selected():
     print("TensorFlow:", describe_tensorflow_version(), file=log.v3)
     if get_tensorflow_version_tuple()[0] == 0:
@@ -515,6 +517,9 @@ def executeMainTask():
   elif task == "nop_init_net_train":
     print("Task: No-operation, despite initializing the network (for training)", file=log.v1)
     engine.init_train_from_config(config, train_data, dev_data, eval_data)
+  elif task == "initialize_model":
+    engine.init_train_from_config(config, train_data, dev_data, eval_data)
+    engine.save_model(config.value('model','dummy'))
   else:
     assert False, "unknown task: %s" % task
 
