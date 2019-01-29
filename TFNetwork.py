@@ -1394,31 +1394,45 @@ class LossHolder:
     self._prepare()
     return self._norm_factor
 
-  def _normalized_loss_value_per_seq(self, value):
+  def _normalized_value_per_seq(self, value, per_pos=False):
     """
-    :param tf.Tensor|None loss:
+    :param tf.Tensor|None value: (batch*time,) or (time*batch,)
+    :param bool per_pos: if true return tf.Tensor(B,T) else tf.Tensor(B)
     :return: (batch,) or None if loss is None
     :rtype: tf.Tensor|None
     """
     if value is None:
       return None
-    return self.loss.reduce_to_batch(value, normalize=True)
 
-  def get_normalized_loss_value_per_seq(self):
+    if per_pos:
+      value = tf.reshape(value, tf.shape(self.loss.output.get_sequence_mask()))  # (batch,time) or (time,batch)
+
+      # We want output of the form (B,T)
+      if self.loss.output.time_dim_axis == 0:
+        from TFUtil import swapaxes
+        value = swapaxes(value, 0, 1)  # resulting in (B,T,...)
+
+      return value
+    else:
+      return self.loss.reduce_to_batch(value, normalize=True)
+
+  def get_normalized_loss_value_per_seq(self, per_pos=False):
     """
+    :param bool per_pos: if true return tf.Tensor(B,T) else tf.Tensor(B)
     :return: (batch,) or None if loss is None
-    :rtype: tf.Tensor|None
+    :rtype: tf.Tensor(B,T)|tf.Tensor(B)|None
     """
     self._prepare()
-    return self._normalized_loss_value_per_seq(self._loss_value)
+    return self._normalized_value_per_seq(self._loss_value, per_pos=per_pos)
 
-  def get_normalized_error_value_per_seq(self):
+  def get_normalized_error_value_per_seq(self, per_pos=False):
     """
+    :param bool per_pos: if true return tf.Tensor(B,T) else tf.Tensor(B)
     :return: (batch,) or None if error is None
     :rtype: tf.Tensor|None
     """
     self._prepare()
-    return self._normalized_loss_value_per_seq(self._error_value)
+    return self._normalized_value_per_seq(self._error_value, per_pos=per_pos)
 
   def _tf_summary(self):
     """
@@ -1430,11 +1444,11 @@ class LossHolder:
       return  # skip summaries. the root net should also do this
     name = self.get_tf_name()
     if self._loss_value is not None:
-      tf.summary.scalar("loss_%s" % name, self._loss_value * self._norm_factor)
+      tf.summary.tensor_summary("loss_%s" % name, self._loss_value * self._norm_factor)
       if self._network.get_config().bool("calculate_exp_loss", False):
         tf.summary.scalar("exp_loss_%s" % name, tf.exp(self._loss_value * self._norm_factor))
     if self._error_value is not None:
-      tf.summary.scalar("error_%s" % name, self._error_value * self._norm_factor)
+       tf.summary.tensor_summary("error_%s" % name, self._error_value * self._norm_factor)
 
   def _prepare(self):
     """

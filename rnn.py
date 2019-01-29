@@ -418,8 +418,10 @@ def executeMainTask():
     config.set('load_epoch', engine.epoch)
     print("Evaluate epoch", engine.epoch, file=log.v4)
     engine.eval_model(
-      output_file=config.value("eval_output_file", ""),
-      output_per_seq_file=config.value("eval_output_file_per_seq", ""))
+      output_file=config.value("eval_output_file", None),
+      output_per_seq_file=config.value("eval_output_file_per_seq", None),
+      loss_name=config.value("loss_name", None),
+      output_per_seq_format=config.value("output_per_seq_format", "score"),)
   elif task in ['forward', 'hpx']:
     assert eval_data is not None, 'no eval data provided'
     combine_labels = config.value('combine_labels', '')
